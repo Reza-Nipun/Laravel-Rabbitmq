@@ -1,0 +1,67 @@
+version: "3.8"
+services:
+  nginx:
+    image: library/nginx:alpine
+    container_name: laravel-rabbitmq-admin-nginx
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./:/var/www/html:cached
+      - ./.docker/nginx:/etc/nginx/conf.d
+      - ./.docker/nginx/ssl:/etc/nginx/conf.d/ssl
+    depends_on:
+      - app
+    networks:
+      - laravel-rabbitmq-admin-network
+  
+  app:
+    build:
+      context: ./.docker/php
+      dockerfile: Dockerfile
+    container_name: laravel-rabbitmq-admin-app
+    restart: unless-stopped
+    volumes:
+      - ./:/var/www/html:cached
+      - ./.docker/php/php-fpm.ini:/usr/local/etc/php/conf.d/custom.ini
+      - ~/.ssh:/root/.ssh
+    depends_on:
+      - mariadb
+      - redis
+    networks:
+      - laravel-rabbitmq-admin-network
+
+  mariadb:
+    image: mariadb:10.5.5
+    container_name: laravel-rabbitmq-admin-mariadb
+    restart: unless-stopped
+    ports:
+      - 3306:3306
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - MYSQL_DATABASE=laravel_rabbitmq_admin
+    networks:
+      - laravel-rabbitmq-admin-network
+  
+  redis:
+    image: redis:alpine
+    container_name: laravel-rabbitmq-admin-redis
+    volumes:
+      - ./data/redis:/data
+    ports:
+      - 6379:6379
+    networks:
+      - laravel-rabbitmq-admin-network
+
+networks:
+  laravel-rabbitmq-admin-network:
+    driver: bridge
+
+volumes:
+  laravel-rabbitmq-admin-volume:
+    driver: local
